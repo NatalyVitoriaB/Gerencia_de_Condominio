@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Condomínios Guaramirim</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; }
+        button { margin: 5px; padding: 5px 10px; cursor: pointer; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+        .modal-content { background: white; margin: 50px auto; padding: 20px; width: 80%; max-width: 500px; }
+        select { width: 100%; padding: 8px; margin: 5px 0; }
+        input { width: 95%; padding: 8px; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <!-- Página Inicial -->
+    <div id="home-page">
+        <h1>Condomínios Guaramirim</h1>
+        <button onclick="showModule('blocos')">Blocos</button>
+        <button onclick="showModule('apartamentos')">Apartamentos</button>
+        <button onclick="showModule('moradores')">Moradores</button>
+        <button onclick="showModule('pagamentos')">Pagamentos</button>
+        <button onclick="showModule('manutencoes')">Manutenções</button>
+    </div>
+
+    <!-- Módulos (todos com mesma estrutura CRUD) -->
+    <div id="blocos" class="module" style="display:none;">
+        <button onclick="showHome()">Voltar</button>
+        <h2>Blocos</h2>
+        <button onclick="openModal('bloco', null)">Adicionar</button>
+        <table id="tabelaBlocos"><thead><tr><th>ID</th><th>Nome</th><th>Andares</th><th>Ações</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div id="apartamentos" class="module" style="display:none;">
+        <button onclick="showHome()">Voltar</button>
+        <h2>Apartamentos</h2>
+        <button onclick="openModal('apartamento', null)">Adicionar</button>
+        <table id="tabelaApartamentos"><thead><tr><th>ID</th><th>Número</th><th>Bloco</th><th>Andar</th><th>Vagas</th><th>Ações</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div id="moradores" class="module" style="display:none;">
+        <button onclick="showHome()">Voltar</button>
+        <h2>Moradores</h2>
+        <button onclick="openModal('morador', null)">Adicionar</button>
+        <table id="tabelaMoradores"><thead><tr><th>ID</th><th>Nome</th><th>CPF</th><th>Celular</th><th>Apartamento</th><th>Tipo</th><th>Ações</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div id="pagamentos" class="module" style="display:none;">
+        <button onclick="showHome()">Voltar</button>
+        <h2>Pagamentos</h2>
+        <button onclick="openModal('pagamento', null)">Adicionar</button>
+        <table id="tabelaPagamentos"><thead><tr><th>ID</th><th>Morador</th><th>Valor</th><th>Data</th><th>Tipo</th><th>Status</th><th>Ações</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div id="manutencoes" class="module" style="display:none;">
+        <button onclick="showHome()">Voltar</button>
+        <h2>Manutenções</h2>
+        <button onclick="openModal('manutencao', null)">Adicionar</button>
+        <table id="tabelaManutencoes"><thead><tr><th>ID</th><th>Descrição</th><th>Área</th><th>Responsável</th><th>Data</th><th>Custo</th><th>Ações</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <!-- Modal único para todos os módulos -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span style="float:right;cursor:pointer" onclick="closeModal()">✕</span>
+            <h2 id="modalTitle">Adicionar</h2>
+            <form id="modalForm" onsubmit="saveData(event)">
+                <input type="hidden" id="itemId">
+                <input type="hidden" id="itemType">
+                <div id="modalContent"></div>
+                <button type="submit">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Banco de dados
+        const database = {
+            blocos: [
+                {id:1, nome:"Bloco A", andares:10},
+                {id:2, nome:"Bloco B", andares:8}
+            ],
+            apartamentos: [
+                {id:1, numero:"101", blocoId:1, andar:1, vagas:2},
+                {id:2, numero:"201", blocoId:1, andar:2, vagas:1}
+            ],
+            moradores: [
+                {id:1, nome:"João Silva", cpf:"123.456.789-00", celular:"(11) 99999-9999", apartamentoId:1, tipo:"Proprietário"},
+                {id:2, nome:"Maria Souza", cpf:"987.654.321-00", celular:"(11) 98888-8888", apartamentoId:2, tipo:"Inquilino"}
+            ],
+            pagamentos: [
+                {id:1, moradorId:1, valor:500, data:"2023-06-05", tipo:"Condomínio", status:"Pago"},
+                {id:2, moradorId:2, valor:500, data:"2023-06-10", tipo:"Condomínio", status:"Pendente"}
+            ],
+            manutencoes: [
+                {id:1, descricao:"Troca de lâmpadas", areaId:null, responsavel:"Empresa XYZ", data:"2023-06-10", custo:120},
+                {id:2, descricao:"Manutenção da piscina", areaId:null, responsavel:"João da Silva", data:"2023-06-15", custo:350}
+            ]
+        };
+
+        // Funções CRUD
+        function showModule(module) {
+            document.getElementById('home-page').style.display = 'none';
+            document.getElementById(module).style.display = 'block';
+            loadTable(module);
+        }
+
+        function showHome() {
+            document.querySelectorAll('.module').forEach(m => m.style.display = 'none');
+            document.getElementById('home-page').style.display = 'block';
+        }
+
+        function loadTable(module) {
+            const tableId = `tabela${module.charAt(0).toUpperCase() + module.slice(1).replace('-', '')}`;
+            const tbody = document.querySelector(`#${tableId} tbody`);
+            tbody.innerHTML = '';
+            
+            database[module.replace('-', '')].forEach(item => {
+                let row = `<tr><td>${item.id}</td>`;
+                
+                // Colunas específicas para cada módulo
+                if (module === 'blocos') {
+                    row += `<td>${item.nome}</td><td>${item.andares}</td>`;
+                } 
+                else if (module === 'apartamentos') {
+                    const bloco = database.blocos.find(b => b.id === item.blocoId);
+                    row += `<td>${item.numero}</td><td>${bloco ? bloco.nome : ''}</td><td>${item.andar}</td><td>${item.vagas}</td>`;
+                }
+                else if (module === 'moradores') {
+                    const apartamento = database.apartamentos.find(a => a.id === item.apartamentoId);
+                    row += `<td>${item.nome}</td><td>${item.cpf}</td><td>${item.celular}</td><td>${apartamento ? apartamento.numero : ''}</td><td>${item.tipo}</td>`;
+                }
+                else if (module === 'pagamentos') {
+                    const morador = database.moradores.find(m => m.id === item.moradorId);
+                    row += `<td>${morador ? morador.nome : ''}</td><td>R$ ${item.valor.toFixed(2)}</td><td>${item.data}</td><td>${item.tipo}</td><td>${item.status}</td>`;
+                }
+                else if (module === 'manutencoes') {
+                    row += `<td>${item.descricao}</td><td>${item.areaId ? 'Área ' + item.areaId : 'Geral'}</td><td>${item.responsavel}</td><td>${item.data}</td><td>R$ ${item.custo.toFixed(2)}</td>`;
+                }
+                
+                row += `<td>
+                    <button onclick="openModal('${module.replace('s', '').replace('-', '')}', ${item.id})">Editar</button>
+                    <button onclick="deleteItem('${module.replace('-', '')}', ${item.id})">Excluir</button>
+                </td></tr>`;
+                
+                tbody.innerHTML += row;
+            });
+        }
+
+        function openModal(type, id) {
+            const module = type + 's';
+            
+            const item = id ? database[module].find(i => i.id === id) : null;
+            document.getElementById('modalTitle').textContent = id ? `Editar ${type}` : `Adicionar ${type}`;
+            document.getElementById('itemId').value = id || '';
+            document.getElementById('itemType').value = type;
+            
+            let formFields = '';
+            
+            if (type === 'bloco') {
+                formFields = `
+                    <label>Nome: <input type="text" id="nome" value="${item?.nome || ''}" required></label>
+                    <label>Andares: <input type="number" id="andares" value="${item?.andares || ''}" required></label>
+                `;
+            } 
+            else if (type === 'apartamento') {
+                formFields = `
+                    <label>Número: <input type="text" id="numero" value="${item?.numero || ''}" required></label>
+                    <label>Bloco: 
+                        <select id="blocoId" required>
+                            ${database.blocos.map(b => `<option value="${b.id}" ${item?.blocoId === b.id ? 'selected' : ''}>${b.nome}</option>`).join('')}
+                        </select>
+                    </label>
+                    <label>Andar: <input type="number" id="andar" value="${item?.andar || ''}" required></label>
+                    <label>Vagas: <input type="number" id="vagas" value="${item?.vagas || ''}" required></label>
+                `;
+            }
+            else if (type === 'morador') {
+                formFields = `
+                    <label>Nome: <input type="text" id="nome" value="${item?.nome || ''}" required></label>
+                    <label>CPF: <input type="text" id="cpf" value="${item?.cpf || ''}" required></label>
+                    <label>Celular: <input type="text" id="celular" value="${item?.celular || ''}" required></label>
+                    <label>Apartamento: 
+                        <select id="apartamentoId" required>
+                            ${database.apartamentos.map(a => `<option value="${a.id}" ${item?.apartamentoId === a.id ? 'selected' : ''}>${a.numero}</option>`).join('')}
+                        </select>
+                    </label>
+                    <label>Tipo: 
+                        <select id="tipo" required>
+                            <option value="Proprietário" ${item?.tipo === 'Proprietário' ? 'selected' : ''}>Proprietário</option>
+                            <option value="Inquilino" ${item?.tipo === 'Inquilino' ? 'selected' : ''}>Inquilino</option>
+                            <option value="Outro" ${item?.tipo === 'Outro' ? 'selected' : ''}>Outro</option>
+                        </select>
+                    </label>
+                `;
+            }
+            else if (type === 'pagamento') {
+                formFields = `
+                    <label>Morador: 
+                        <select id="moradorId" required>
+                            ${database.moradores.map(m => `<option value="${m.id}" ${item?.moradorId === m.id ? 'selected' : ''}>${m.nome} (Apto ${database.apartamentos.find(a => a.id === m.apartamentoId)?.numero || ''})</option>`).join('')}
+                        </select>
+                    </label>
+                    <label>Valor: <input type="number" step="0.01" id="valor" value="${item?.valor || ''}" required></label>
+                    <label>Data: <input type="date" id="data" value="${item?.data || ''}" required></label>
+                    <label>Tipo: 
+                        <select id="tipo" required>
+                            <option value="Condomínio" ${item?.tipo === 'Condomínio' ? 'selected' : ''}>Condomínio</option>
+                            <option value="Multa" ${item?.tipo === 'Multa' ? 'selected' : ''}>Multa</option>
+                            <option value="Outro" ${item?.tipo === 'Outro' ? 'selected' : ''}>Outro</option>
+                        </select>
+                    </label>
+                    <label>Status: 
+                        <select id="status" required>
+                            <option value="Pendente" ${item?.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
+                            <option value="Pago" ${item?.status === 'Pago' ? 'selected' : ''}>Pago</option>
+                            <option value="Atrasado" ${item?.status === 'Atrasado' ? 'selected' : ''}>Atrasado</option>
+                        </select>
+                    </label>
+                `;
+            }
+            else if (type === 'manutencao') {
+                formFields = `
+                    <label>Descrição: <input type="text" id="descricao" value="${item?.descricao || ''}" required></label>
+                    <label>Área (opcional): 
+                        <select id="areaId">
+                            <option value="">Geral</option>
+                            <option value="1" ${item?.areaId === 1 ? 'selected' : ''}>Bloco A</option>
+                            <option value="2" ${item?.areaId === 2 ? 'selected' : ''}>Bloco B</option>
+                            <option value="3" ${item?.areaId === 3 ? 'selected' : ''}>Piscina</option>
+                            <option value="4" ${item?.areaId === 4 ? 'selected' : ''}>Salão de Festas</option>
+                        </select>
+                    </label>
+                    <label>Responsável: <input type="text" id="responsavel" value="${item?.responsavel || ''}" required></label>
+                    <label>Data: <input type="date" id="data" value="${item?.data || ''}" required></label>
+                    <label>Custo: <input type="number" step="0.01" id="custo" value="${item?.custo || ''}" required></label>
+                `;
+            }
+            
+            document.getElementById('modalContent').innerHTML = formFields;
+            document.getElementById('modal').style.display = 'block';
+        }
+
+        function saveData(e) {
+            e.preventDefault();
+            const type = document.getElementById('itemType').value;
+            const module = type + 's';
+            
+            const id = parseInt(document.getElementById('itemId').value) || Math.max(0, ...database[module].map(i => i.id)) + 1;
+            
+            let newItem = { id };
+            
+            if (type === 'bloco') {
+                newItem.nome = document.getElementById('nome').value;
+                newItem.andares = parseInt(document.getElementById('andares').value);
+            } 
+            else if (type === 'apartamento') {
+                newItem.numero = document.getElementById('numero').value;
+                newItem.blocoId = parseInt(document.getElementById('blocoId').value);
+                newItem.andar = parseInt(document.getElementById('andar').value);
+                newItem.vagas = parseInt(document.getElementById('vagas').value);
+            }
+            else if (type === 'morador') {
+                newItem.nome = document.getElementById('nome').value;
+                newItem.cpf = document.getElementById('cpf').value;
+                newItem.celular = document.getElementById('celular').value;
+                newItem.apartamentoId = parseInt(document.getElementById('apartamentoId').value);
+                newItem.tipo = document.getElementById('tipo').value;
+            }
+            else if (type === 'pagamento') {
+                newItem.moradorId = parseInt(document.getElementById('moradorId').value);
+                newItem.valor = parseFloat(document.getElementById('valor').value);
+                newItem.data = document.getElementById('data').value;
+                newItem.tipo = document.getElementById('tipo').value;
+                newItem.status = document.getElementById('status').value;
+            }
+            else if (type === 'manutencao') {
+                newItem.descricao = document.getElementById('descricao').value;
+                const areaId = document.getElementById('areaId').value;
+                newItem.areaId = areaId ? parseInt(areaId) : null;
+                newItem.responsavel = document.getElementById('responsavel').value;
+                newItem.data = document.getElementById('data').value;
+                newItem.custo = parseFloat(document.getElementById('custo').value);
+            }
+            
+            if (document.getElementById('itemId').value) {
+                const index = database[module].findIndex(i => i.id === id);
+                database[module][index] = newItem;
+            } else {
+                database[module].push(newItem);
+            }
+            
+            closeModal();
+            loadTable(module);
+        }
+
+        function deleteItem(module, id) {
+            if (confirm('Excluir este item?')) {
+                database[module] = database[module].filter(i => i.id !== id);
+                loadTable(module);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+        }
+
+        // Inicializar
+        showHome();
+    </script>
+</body>
+</html>
