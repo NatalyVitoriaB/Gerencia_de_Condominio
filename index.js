@@ -10,13 +10,18 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-// Configuração da conexão MySQL
+const sslOptions= {
+    ca: fs.readFileSync('./BaltimoreCyberTrustRoot.crt.pem'), // caminho para o certificadfo CA
+}
+
+// Configuração da conexão  com o banco de dados MySQL
 const connection = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: 'root',
-    database: 'Gerencia_Condominio',
-    port: 3306
+    host: 'NomeQualquer', // endereco do banco de dados 
+    user: 'root@', // nome de usuario
+    password: 'Cedup@2025', // senha 
+    database: 'Gerencia_de_Condominio', // nome do banco de dados 
+    port: 3306, // prta do banco de dados 
+    ssl: sslOptions //opcoes de seguranca 
 });
 
 connection.connect(err => {
