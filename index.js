@@ -314,6 +314,5 @@ app.get('/pagamentos', (req, res) => {
 
 // Inicia o servidor
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-    console.log(`Servidor rodando em http://localhost:${PORT}`);
-});
+module.exports = app;
+
